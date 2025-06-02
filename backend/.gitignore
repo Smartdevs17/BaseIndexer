@@ -1,0 +1,27 @@
+# Node modules
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+
+# dotenv environment variables
+.env
+
+# TypeScript build output
+dist/
+build/
+
+# Optional IDE settings
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,42 @@
+{
+  "name": "y",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dimka90/indexer.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dimka90/indexer/issues"
+  },
+  "homepage": "https://github.com/dimka90/indexer#readme",
+  "description": "",
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.3",
+    "@types/web3": "^1.0.20",
+    "sequelize-cli": "^6.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "openai": "^4.96.2",
+    "pg": "^8.15.6",
+    "sequelize": "^6.37.7",
+    "web3": "^4.16.0",
+    "web3-core": "^4.7.1",
+    "web3-core-helpers": "^1.10.3",
+    "web3-core-subscriptions": "^1.10.3",
+    "web3-validator": "^2.0.6"
+  }
+}
