@@ -123,9 +123,7 @@ export function useRecentTransactions(limit = 10) {
       }
       
       const data = await response.json();
-      
-      // Transform the data to match our Transaction interface
-      const transformedData: Transaction[] = data.map((tx: any) => ({
+      const transformedData: Transaction[] = data.data.map((tx: any) => ({
         id: tx.id || `tx-${Math.random().toString(16).substring(2, 8)}`,
         hash: tx.hash || tx.id, 
         from: tx.from,
@@ -182,9 +180,7 @@ export function useRecentBlocks(limit = 10) {
       }
       
       const data = await response.json();
-      
-      
-      const formattedBlocks: Block[] = data.map((block: any) => ({
+      const formattedBlocks: Block[] = data.data.map((block: any) => ({
         number: block.number,
         hash: block.hash || `0x${Math.random().toString(16).substring(2, 66)}`,
         timestamp: block.timestamp || new Date().toISOString(),

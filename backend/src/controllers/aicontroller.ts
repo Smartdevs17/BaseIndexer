@@ -234,8 +234,9 @@ export async function runCommand(req: Request, res: Response) {
 
                 return res.status(404).send({
 
-                    success: false,
-                    message:`No record found for the address ${address}`,
+                    success: true,
+                    data: [],
+                    message: `No record found for the address ${address}`,
                     queryType: "address"
                 })
               }

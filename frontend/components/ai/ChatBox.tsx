@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
@@ -163,25 +162,40 @@ export default function ChatBox({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (input.trim() === '' || isLoading) return
-    
+
     const userMessage: MessageType = {
       id: Date.now().toString(),
       text: input,
       sender: 'user',
       timestamp: new Date()
     }
-    
+
     setMessages(prev => [...prev, userMessage])
     setInput('')
-    
+
     try {
       const response = await sendQuery(input)
-
       console.log(response)
 
       if (response.success) {
+        // --- ADD THIS BLOCK ---
+        if (Array.isArray(response.data) && response.data.length === 0) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              text: "No results found for your query.",
+              sender: 'ai',
+              timestamp: new Date(),
+            }
+          ]);
+          setAiTransactions([]);
+          setEndpoint(response.endPoint || null);
+          return;
+        }
+        // --- END BLOCK ---
+
         const processed = processResults(response)
-        
         const aiResponse: MessageType = {
           id: (Date.now() + 1).toString(),
           text: processed.text,
@@ -189,13 +203,9 @@ export default function ChatBox({
           timestamp: new Date(),
           data: processed.data,
         }
-        
 
-        // setAiTransactions(response.data || [])
         setAiTransactions(Array.isArray(response.data) ? response.data : []);
         setEndpoint(response.endPoint || null)
-        console.log(response.endPoint)
-      
         setMessages(prev => [...prev, aiResponse])
       } else {
         // Handle error response with debug info
@@ -207,7 +217,6 @@ export default function ChatBox({
           isError: true,
           debugInfo: debugInfo
         }
-        
         setMessages(prev => [...prev, errorResponse])
         setAiTransactions([]);
       }

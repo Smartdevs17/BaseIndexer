@@ -1,9 +1,8 @@
 // src/controllers/dbExtended.ts
 import TransferQueryService from './db';
 import TransferEvent from '../models/TransferEvent';
-import { Op } from 'sequelize';
+import { Op, fn, col, literal } from 'sequelize';
 
-// Extend the TransferQueryService with additional methods needed by the hooks
 class ExtendedTransferQueryService {
   // Re-export the original methods
   getTransfersByAddress = TransferQueryService.getTransfersByAddress.bind(TransferQueryService);
@@ -12,7 +11,7 @@ class ExtendedTransferQueryService {
   getTransfersByToken = TransferQueryService.getTransfersByToken.bind(TransferQueryService);
   getTransfersByAddressAndToken = TransferQueryService.getTransfersByAddressAndToken.bind(TransferQueryService);
 
-  // Add method for getting recent transfers
+  // Get recent transfers
   async getRecentTransfers(options: any = {}) {
     const {
       limit = 10,
@@ -21,76 +20,89 @@ class ExtendedTransferQueryService {
       sortDir = 'DESC',
     } = options;
 
-    try {
-      return await TransferEvent.findAll({
-        order: [[sortBy, sortDir]],
-        limit,
-        offset,
-      });
-    } catch (error) {
-      console.error('Error querying recent transfers:', error);
-      throw error;
-    }
+    return await TransferEvent.findAll({
+      order: [[sortBy, sortDir]],
+      limit,
+      offset,
+    });
   }
 
-  // Add method for getting recent blocks
+  // Get recent blocks (group by blockNumber)
   async getRecentBlocks(options: any = {}) {
-    const { limit = 10 } = options;
-    
-    try {
-      // If you have a Block model, use that
-      // Otherwise, you can use raw SQL or implement this with another ORM method
-      // For now, we'll return placeholder data
-      return Array.from({ length: limit }, (_, i) => ({
-        id: `block-${i}`,
-        number: `${14000000 - i}`,
-        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        timestamp: new Date(Date.now() - i * 15000).toISOString(),
-        transactions: Math.floor(Math.random() * 100),
-        validator: `0x${Math.random().toString(16).substring(2, 42)}`,
-        gasUsed: `${Math.floor(Math.random() * 8000000)}`,
-      }));
-    } catch (error) {
-      console.error('Error querying recent blocks:', error);
-      throw error;
-    }
+    const { limit = 10, offset = 0 } = options;
+
+    return await TransferEvent.findAll({
+      attributes: [
+        [col('blockNumber'), 'blockNumber'],
+        [fn('MAX', col('timestamp')), 'timestamp'],
+        [fn('COUNT', col('id')), 'transactions'],
+      ],
+      group: ['blockNumber'],
+      order: [[col('blockNumber'), 'DESC']],
+      limit,
+      offset,
+      raw: true,
+    });
   }
 
-  // Add method for getting top addresses
+  // Get top addresses by number of transfers
   async getTopAddresses(options: any = {}) {
     const { limit = 10 } = options;
-    
-    try {
-      // This would typically be a more complex query involving aggregation
-      // For now, we'll return placeholder data
-      return Array.from({ length: limit }, (_, i) => ({
-        address: `0x${Math.random().toString(16).substring(2, 42)}`,
-        balance: `${(Math.random() * 1000).toFixed(4)} ETH`,
-        transactions: Math.floor(Math.random() * 5000),
-        lastActive: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString(),
-      }));
-    } catch (error) {
-      console.error('Error querying top addresses:', error);
-      throw error;
-    }
+
+    // Top addresses by sent + received transfers
+    const sent = await TransferEvent.findAll({
+      attributes: [
+        ['from', 'address'],
+        [fn('COUNT', col('from')), 'count'],
+      ],
+      group: ['from'],
+      order: [[literal('count'), 'DESC']],
+      limit,
+      raw: true,
+    });
+
+    const received = await TransferEvent.findAll({
+      attributes: [
+        ['to', 'address'],
+        [fn('COUNT', col('to')), 'count'],
+      ],
+      group: ['to'],
+      order: [[literal('count'), 'DESC']],
+      limit,
+      raw: true,
+    });
+
+    // Merge and sort by count
+    const addressMap: Record<string, number> = {};
+    sent.forEach((row: any) => {
+      addressMap[row.address] = (addressMap[row.address] || 0) + Number(row.count);
+    });
+    received.forEach((row: any) => {
+      addressMap[row.address] = (addressMap[row.address] || 0) + Number(row.count);
+    });
+
+    const merged = Object.entries(addressMap)
+      .map(([address, count]) => ({ address, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+
+    return merged;
   }
 
-  // Add method for getting network stats
+  // Get network stats
   async getStats() {
-    try {
-      // This would typically involve multiple queries or a pre-computed table
-      // For now, we'll return placeholder data
-      return {
-        tps: 12.5,
-        activeAddresses: 42589,
-        totalTransactions: 8754320,
-        averageGasPrice: '15 gwei',
-        marketCap: '$52.4B',
-      };
-    } catch (error) {
-      console.error('Error querying network stats:', error);
-      throw error;
-    }
+    // Example stats: total transfers, unique addresses, latest block
+    const totalTransfers = await TransferEvent.count();
+    const fromCount = Number(await TransferEvent.aggregate('from', 'count', { distinct: true }));
+    const toCount = Number(await TransferEvent.aggregate('to', 'count', { distinct: true }));
+    const uniqueAddresses = fromCount + toCount;
+    const latestBlock = await TransferEvent.max('blockNumber');
+
+    return {
+      totalTransfers,
+      uniqueAddresses,
+      latestBlock,
+    };
   }
 }
 
