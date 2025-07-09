@@ -20,50 +20,45 @@ export function useAIAssistant() {
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
+
   const sendQuery = async (message: string): Promise<AIResponse> => {
-    setIsLoading(true);
-    setError(null);
-    setDebugInfo(null);
-    
-    try {
-      const endpoint = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/indexer/run`;
-      
-      console.log('Calling backend endpoint:', endpoint);
-      
-      // Option 1: Use POST with request body (preferred method based on your backend code)
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userMessage: message }),
+  setIsLoading(true);
+  setError(null);
+  setDebugInfo(null);
+
+  try {
+    const endpoint = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/indexer/run`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userMessage: message }),
+    });
+
+    const data = await response.json();
+
+    // Only throw if success is false
+    if (!data.success) {
+      setDebugInfo({
+        status: response.status,
+        contentType: response.headers.get('Content-Type'),
+        responsePreview: JSON.stringify(data).substring(0, 500)
       });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        setDebugInfo({
-          status: response.status,
-          contentType: response.headers.get('Content-Type'),
-          responsePreview: errorText.substring(0, 500) 
-        });
-        throw new Error(`Backend error: ${errorText}`);
-      }
-      // console.log('Response received from backend:', await response.json());
-      return await response.json();
-    } catch (error) {
-      console.error('Error sending query to AI:', error);
+      throw new Error(`Backend error: ${JSON.stringify(data)}`);
+    }
+
+    return data;
+  } catch (error) {
+ console.error('Error sending query to AI:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       setError(errorMessage);
       
       return {
         success: false,
         message: errorMessage,
-      };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+      };  
+    setIsLoading(false);
+  }
+};
 
 
 

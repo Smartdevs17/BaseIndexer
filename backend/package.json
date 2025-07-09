@@ -8,14 +8,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dimka90/indexer.git"
+    "url": "git+https://github.com/smartdevs17/indexer.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/dimka90/indexer/issues"
+    "url": "https://github.com/smartdevs17/indexer/issues"
   },
-  "homepage": "https://github.com/dimka90/indexer#readme",
+  "homepage": "https://github.com/smartdevs17/indexer#readme",
   "description": "",
   "devDependencies": {
     "@types/cors": "^2.8.17",
