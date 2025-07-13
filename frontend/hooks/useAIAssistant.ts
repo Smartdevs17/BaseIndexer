@@ -48,14 +48,15 @@ export function useAIAssistant() {
 
     return data;
   } catch (error) {
- console.error('Error sending query to AI:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      setError(errorMessage);
-      
-      return {
-        success: false,
-        message: errorMessage,
-      };  
+    console.error('Error sending query to AI:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    setError(errorMessage);
+    
+    return {
+      success: false,
+      message: errorMessage,
+    };  
+  } finally {
     setIsLoading(false);
   }
 };
