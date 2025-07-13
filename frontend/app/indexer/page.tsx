@@ -33,7 +33,7 @@ export default function IndexerPage() {
   // Pagination states
   const [transactionPage, setTransactionPage] = useState(1);
   const [blockPage, setBlockPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 50;
 
   // Fetch data hooks with automatic refresh every 15 seconds
   const { transactions, loading: txsLoading, refreshTransactions } = useRecentTransactions(20);
@@ -41,23 +41,31 @@ export default function IndexerPage() {
   const { isRunning, indexerError } = useIndexerControl();
 
   const allTransactions = useMemo(() => {
-    return aiTransactions.map((tx: any) => ({
-      id: tx.id.toString(),
-      hash: tx.id.toString(),
-      from: tx.from,
-      to: tx.to,
-      value: tx.value,
-      timestamp: new Date(tx.timestamp).toISOString(),
-      tokenAddress: tx.tokenAddress,
-      source: 'ai'
-    }));
+    return aiTransactions.map((tx: any) => {
+      let timestamp;
+      try {
+        timestamp = tx.timestamp ? new Date(tx.timestamp).toISOString() : new Date().toISOString();
+      } catch (error) {
+        console.warn('Invalid timestamp for transaction:', tx.id, tx.timestamp);
+        timestamp = new Date().toISOString(); // fallback to current time
+      }
+      
+      return {
+        id: tx.id.toString(),
+        hash: tx.id.toString(),
+        from: tx.from,
+        to: tx.to,
+        value: tx.value,
+        timestamp,
+        tokenAddress: tx.tokenAddress,
+        source: 'ai'
+      };
+    });
   }, [aiTransactions]);
 
   // Paginated data
-  const paginatedTransactions = allTransactions.slice(
-    (transactionPage - 1) * itemsPerPage,
-    transactionPage * itemsPerPage
-  );
+const paginatedTransactions = allTransactions; // Let DataTable handle pagination
+
 
   // Calculate total pages
   const totalTransactionPages = Math.ceil(allTransactions.length / itemsPerPage);
@@ -271,29 +279,7 @@ export default function IndexerPage() {
                         </div>
                       </div>
                     )}
-                    <TransactionList transactions={paginatedTransactions} />
-                    {/* Pagination controls for transactions */}
-                    <div className="flex items-center justify-between px-6 py-3 bg-gray-50 dark:bg-slate-700 border-t border-gray-200 dark:border-gray-600">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        Page {transactionPage} of {totalTransactionPages}
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={prevTransactionPage}
-                          disabled={transactionPage === 1}
-                          className="px-3 py-1 text-sm bg-white dark:bg-slate-600 border border-gray-300 dark:border-gray-500 rounded hover:bg-gray-50 dark:hover:bg-slate-500 disabled:opacity-50"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={nextTransactionPage}
-                          disabled={transactionPage === totalTransactionPages}
-                          className="px-3 py-1 text-sm bg-white dark:bg-slate-600 border border-gray-300 dark:border-gray-500 rounded hover:bg-gray-50 dark:hover:bg-slate-500 disabled:opacity-50"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
+                    <TransactionList transactions={paginatedTransactions} />        
                   </>
                 )}
               </motion.div>
