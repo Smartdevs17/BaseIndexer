@@ -8,6 +8,7 @@ class TransferEvent extends Model {
   public tokenAddress!: string;
   public blockNumber!: number;
   public timestamp!: Date;
+  public transactionHash!: string;
 }
 
 TransferEvent.init(
@@ -29,6 +30,10 @@ TransferEvent.init(
     },
     timestamp: {
       type: DataTypes.DATE,
+    },
+    transactionHash: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
   },
   {
