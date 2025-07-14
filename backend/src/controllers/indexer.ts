@@ -73,15 +73,16 @@ const setupSubscription = async () => {
         const blockNumber = result.blockNumber;
 
         await TransferEvent.create({
-          from,
-          to,
-          value,
-          tokenAddress,
-          blockNumber,
-          timestamp: new Date(),
-        });
+        from,
+        to,
+        value,
+        tokenAddress,
+        blockNumber,
+        timestamp: new Date(),
+        transactionHash: result.transactionHash,
+      });
 
-        console.log(`New ERC-20 Transfer: ${from} -> ${to}, Value: ${value}, Token: ${tokenAddress}`);
+        console.log(`New ERC-20 Transfer: ${from} -> ${to}, Value: ${value}, Token: ${tokenAddress}, Tx: ${result.transactionHash}`);
       } catch (err) {
         console.error("Error processing event:", err);
       }

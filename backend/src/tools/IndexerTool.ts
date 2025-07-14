@@ -17,7 +17,7 @@ export const indexerTool: FunctionTool = {
           type: "array",
           items: {
             type: "string",
-            enum: ["value", "to", "from"],
+            enum: ["value", "to", "from", "blockNumber", "timestamp", "transactionHash"],
           },
           description: "Specific fields to include in the response",
         },

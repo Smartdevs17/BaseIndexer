@@ -92,9 +92,10 @@ const Message = ({ message }: { message: MessageType }) => {
                     </button>
                   </div>
                 </div>
-                {/* <div className="pt-1 mt-1 border-t border-gray-200 dark:border-gray-600">
+              <div className="pt-1 mt-1 border-t border-gray-200 dark:border-gray-600">
+                {message.data.transactionHash ? (
                   <a 
-                    href={`https://etherscan.io/tx/${message.data.id}`} 
+                    href={`https://etherscan.io/tx/${message.data.transactionHash}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="flex items-center text-xs text-blue-500 hover:underline"
@@ -102,12 +103,12 @@ const Message = ({ message }: { message: MessageType }) => {
                     <ExternalLink size={12} className="mr-1" />
                     View on Etherscan
                   </a>
-                </div> */}
-                <div className="pt-1 mt-1 border-t border-gray-200 dark:border-gray-600">
-                <span className="flex items-center text-xs text-gray-500">
-                  <ExternalLink size={12} className="mr-1" />
-                  Transaction Hash: Not Available
-                </span>
+                ) : (
+                  <span className="flex items-center text-xs text-gray-500">
+                    <ExternalLink size={12} className="mr-1" />
+                    Transaction Hash: Not Available
+                  </span>
+                )}
               </div>
               </div>
             </div>
