@@ -18,6 +18,8 @@ import {
 import TransactionList from '@/components/indexer/TransactionList'
 import SearchBar from '@/components/indexer/SearchBar'
 import ExportButton from '@/components/indexer/ExportButton'
+import Navbar from '@/components/layout/Navbar'
+      <Navbar />
 
 interface TransactionFilters {
   dateRange: 'all' | '24h' | '7d' | '30d' | 'custom'
@@ -195,6 +197,8 @@ export default function TransactionsPage() {
   }, [])
 
   return (
+    <>
+    <Navbar />
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
@@ -451,5 +455,6 @@ export default function TransactionsPage() {
         </motion.div>
       </div>
     </div>
+    </>
   )
 }
