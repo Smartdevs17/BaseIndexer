@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Search, 
@@ -16,182 +16,63 @@ import {
   X,
   ExternalLink,
   Copy,
-  CheckCircle
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import BlockList from '@/components/indexer/BlockList'
 import SearchBar from '@/components/indexer/SearchBar'
 import ExportButton from '@/components/indexer/ExportButton'
 import Navbar from '@/components/layout/Navbar'
-
-interface BlockFilters {
-  blockRange: 'all' | '24h' | '7d' | '30d'
-  minTransactions: string
-  maxTransactions: string
-  validator: string
-  minGasUsed: string
-  maxGasUsed: string
-}
-
-// Mock blocks data - replace with real API
-const generateMockBlocks = (count: number) => {
-  const validators = [
-    '0xvalidator1234567890abcdef',
-    '0xvalidator2345678901bcdef0', 
-    '0xvalidator3456789012cdef01',
-    '0xvalidator4567890123def012',
-    '0xvalidator5678901234ef0123'
-  ]
-  
-  return Array.from({ length: count }, (_, i) => ({
-    number: 18500 - i,
-    hash: `0x${Math.random().toString(16).substr(2, 64)}`,
-    timestamp: new Date(Date.now() - i * 12000).toISOString(), // 12 seconds per block
-    transactions: Math.floor(Math.random() * 200) + 10,
-    validator: validators[Math.floor(Math.random() * validators.length)],
-    gasUsed: `${(Math.random() * 10 + 5).toFixed(1)}M`,
-    gasLimit: `${(Math.random() * 5 + 10).toFixed(1)}M`,
-    baseFeePerGas: (Math.random() * 0.00001).toFixed(8),
-    reward: (Math.random() * 0.1 + 0.05).toFixed(4),
-    size: Math.floor(Math.random() * 100000) + 50000
-  }))
-}
+import { useBlocks } from '@/hooks/useBlocks'
 
 export default function BlocksPage() {
-  const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [selectedBlock, setSelectedBlock] = useState<any>(null)
   const [copied, setCopied] = useState<string | null>(null)
-  
-  const [filters, setFilters] = useState<BlockFilters>({
-    blockRange: 'all',
-    minTransactions: '',
-    maxTransactions: '',
-    validator: '',
-    minGasUsed: '',
-    maxGasUsed: ''
-  })
 
-  // Mock data
-  const [allBlocks] = useState(() => generateMockBlocks(500))
-  
-  // Filter and search blocks
-  const filteredBlocks = useMemo(() => {
-    let filtered = allBlocks
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(block => 
-        block.number.toString().includes(query) ||
-        block.hash.toLowerCase().includes(query) ||
-        block.validator.toLowerCase().includes(query)
-      )
-    }
-
-    // Block range filter
-    if (filters.blockRange !== 'all') {
-      const now = new Date()
-      const cutoff = new Date()
-      
-      switch (filters.blockRange) {
-        case '24h':
-          cutoff.setHours(now.getHours() - 24)
-          break
-        case '7d':
-          cutoff.setDate(now.getDate() - 7)
-          break
-        case '30d':
-          cutoff.setDate(now.getDate() - 30)
-          break
-      }
-      
-      filtered = filtered.filter(block => new Date(block.timestamp) >= cutoff)
-    }
-
-    // Transaction count filters
-    if (filters.minTransactions || filters.maxTransactions) {
-      filtered = filtered.filter(block => {
-        const txCount = block.transactions
-        const min = filters.minTransactions ? parseInt(filters.minTransactions) : 0
-        const max = filters.maxTransactions ? parseInt(filters.maxTransactions) : Infinity
-        return txCount >= min && txCount <= max
-      })
-    }
-
-    // Validator filter
-    if (filters.validator) {
-      filtered = filtered.filter(block => 
-        block.validator.toLowerCase().includes(filters.validator.toLowerCase())
-      )
-    }
-
-    // Gas used filters
-    if (filters.minGasUsed || filters.maxGasUsed) {
-      filtered = filtered.filter(block => {
-        const gasUsed = parseFloat(block.gasUsed.replace('M', ''))
-        const min = filters.minGasUsed ? parseFloat(filters.minGasUsed) : 0
-        const max = filters.maxGasUsed ? parseFloat(filters.maxGasUsed) : Infinity
-        return gasUsed >= min && gasUsed <= max
-      })
-    }
-
-    return filtered
-  }, [allBlocks, searchQuery, filters])
-
-  // Block statistics
-  const stats = useMemo(() => {
-    const totalTransactions = filteredBlocks.reduce((sum, block) => sum + block.transactions, 0)
-    const avgTransactions = totalTransactions / filteredBlocks.length || 0
-    const avgGasUsed = filteredBlocks.reduce((sum, block) => sum + parseFloat(block.gasUsed.replace('M', '')), 0) / filteredBlocks.length || 0
-    const avgBlockTime = filteredBlocks.length > 1 ? 
-      (new Date(filteredBlocks[0].timestamp).getTime() - new Date(filteredBlocks[1].timestamp).getTime()) / 1000 : 12
-    
-    return {
-      totalBlocks: filteredBlocks.length,
-      totalTransactions,
-      avgTransactions: Math.round(avgTransactions),
-      avgGasUsed: avgGasUsed.toFixed(1),
-      avgBlockTime: avgBlockTime.toFixed(1)
-    }
-  }, [filteredBlocks])
+  // Use the real data hook
+  const {
+    blocks,
+    filteredBlocks,
+    loading,
+    error,
+    stats,
+    refetch,
+    searchQuery,
+    setSearchQuery,
+    filters,
+    setFilters,
+    clearFilters,
+    pagination,
+    currentPage,
+    setCurrentPage,
+    searchBlocks
+  } = useBlocks({ limit: 50, autoRefresh: true })
 
   const handleSearch = useCallback(async (query: string) => {
     setIsSearching(true)
     setSearchQuery(query)
     
+    if (query.trim()) {
+      // If it's a specific search, use the search API
+      const searchResults = await searchBlocks(query)
+      console.log('Search results:', searchResults)
+    }
+    
     setTimeout(() => {
       setIsSearching(false)
     }, 500)
-  }, [])
+  }, [setSearchQuery, searchBlocks])
 
-  const handleFilterChange = (key: keyof BlockFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
-  }
-
-  const clearFilters = () => {
-    setFilters({
-      blockRange: 'all',
-      minTransactions: '',
-      maxTransactions: '',
-      validator: '',
-      minGasUsed: '',
-      maxGasUsed: ''
-    })
-    setSearchQuery('')
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters({ ...filters, [key]: value })
   }
 
   const refreshData = useCallback(async () => {
-    setIsLoading(true)
-    setLastRefresh(new Date())
-    
-    setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
-  }, [])
+    await refetch()
+  }, [refetch])
 
   const copyToClipboard = (text: string, type: string) => {
     navigator.clipboard.writeText(text)
@@ -199,9 +80,19 @@ export default function BlocksPage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  const formatAddress = (address: string) => {
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
-  }
+  // Prepare export data
+  const exportData = filteredBlocks.map(block => ({
+    'Block Number': block.number,
+    'Block Hash': block.hash,
+    'Timestamp': block.timestamp,
+    'Transactions': block.transactions,
+    'Validator': block.validator,
+    'Gas Used': block.gasUsed,
+    'Gas Limit': block.gasLimit,
+    'Total Value': block.totalValue,
+    'Unique Tokens': block.uniqueTokens,
+    'Top Token': block.topToken
+  }))
 
   return (
     <>
@@ -222,136 +113,144 @@ export default function BlocksPage() {
                   Blocks
                 </h1>
                 <p className="text-slate-600 dark:text-slate-400">
-                  Explore all blocks on the Base network with detailed information and analytics
+                  Explore blockchain blocks aggregated from ERC-20 transfer activity
                 </p>
               </div>
               
               <div className="flex items-center space-x-4 mt-4 md:mt-0">
+                {error && (
+                  <div className="flex items-center text-red-600 dark:text-red-400">
+                    <AlertCircle className="h-5 w-5 mr-2" />
+                    <span className="text-sm">Connection Error</span>
+                  </div>
+                )}
+                {!error && (
+                  <div className="flex items-center text-green-600 dark:text-green-400">
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    <span className="text-sm">Live Data</span>
+                  </div>
+                )}
                 <button
                   onClick={refreshData}
-                  disabled={isLoading}
+                  disabled={loading}
                   className="flex items-center px-4 py-2 bg-base-blue-600 text-white rounded-lg hover:bg-base-blue-700 disabled:opacity-50 transition-colors"
                 >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
                 </button>
-                
-                <ExportButton 
-                  data={filteredBlocks}
-                  filename="blocks"
-                />
               </div>
             </div>
           </motion.div>
 
           {/* Statistics Cards */}
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8"
+            className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
           >
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Total Blocks</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalBlocks.toLocaleString()}</p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Blocks</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {loading ? '...' : stats?.totalBlocks?.toLocaleString() || '0'}
+                  </p>
                 </div>
-                <Database className="w-8 h-8 text-blue-500" />
+                <Database className="h-8 w-8 text-base-blue-600" />
               </div>
             </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Total Transactions</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalTransactions.toLocaleString()}</p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Latest Block</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {loading ? '...' : stats?.latestBlockNumber?.toLocaleString() || '0'}
+                  </p>
                 </div>
-                <Activity className="w-8 h-8 text-green-500" />
+                <TrendingUp className="h-8 w-8 text-green-600" />
               </div>
             </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Avg Transactions</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.avgTransactions}</p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Avg Transactions</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {loading ? '...' : stats?.avgTransactionsPerBlock?.toFixed(1) || '0'}
+                  </p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-purple-500" />
+                <Activity className="h-8 w-8 text-purple-600" />
               </div>
             </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Avg Gas Used</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.avgGasUsed}M</p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Avg Block Time</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {loading ? '...' : `${stats?.avgBlockTime || 12}s`}
+                  </p>
                 </div>
-                <Zap className="w-8 h-8 text-amber-500" />
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Avg Block Time</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.avgBlockTime}s</p>
-                </div>
-                <Clock className="w-8 h-8 text-red-500" />
+                <Clock className="h-8 w-8 text-orange-600" />
               </div>
             </div>
           </motion.div>
 
           {/* Search and Filters */}
           <motion.div
-            className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700 mb-8"
+            className="mb-8 space-y-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             {/* Search Bar */}
-            <div className="mb-6">
-              <SearchBar
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onSearch={handleSearch}
-                isSearching={isSearching}
-              />
-            </div>
+            <SearchBar
+              onSearch={handleSearch}
+              isSearching={isSearching}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              loading={loading}
+              placeholder="Search by block number, hash, or validator..."
+            />
 
-            {/* Filter Toggle */}
-            <div className="flex items-center justify-between">
+            {/* Filter Controls */}
+            <div className="flex flex-wrap items-center gap-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="flex items-center px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <Filter className="w-4 h-4 mr-2" />
-                Advanced Filters
-                <ChevronDown className={`w-4 h-4 ml-2 transform transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                Filters
+                <ChevronDown className={`w-4 h-4 ml-2 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
               </button>
-              
+
               {(searchQuery || Object.values(filters).some(v => v !== 'all' && v !== '')) && (
                 <button
                   onClick={clearFilters}
-                  className="flex items-center px-4 py-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                  className="flex items-center px-4 py-2 text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
                   <X className="w-4 h-4 mr-2" />
-                  Clear All
+                  Clear Filters
                 </button>
               )}
+
+              <ExportButton
+                data={exportData}
+                filename="blocks"
+              />
             </div>
 
-            {/* Filters Panel */}
+            {/* Expanded Filters */}
             {showFilters && (
               <motion.div
-                className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700"
+                className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Block Range */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                       Block Range
@@ -359,7 +258,7 @@ export default function BlocksPage() {
                     <select
                       value={filters.blockRange}
                       onChange={(e) => handleFilterChange('blockRange', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-base-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                     >
                       <option value="all">All Time</option>
                       <option value="24h">Last 24 Hours</option>
@@ -368,35 +267,6 @@ export default function BlocksPage() {
                     </select>
                   </div>
 
-                  {/* Min Transactions */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Min Transactions
-                    </label>
-                    <input
-                      type="number"
-                      value={filters.minTransactions}
-                      onChange={(e) => handleFilterChange('minTransactions', e.target.value)}
-                      placeholder="0"
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-base-blue-500"
-                    />
-                  </div>
-
-                  {/* Max Transactions */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Max Transactions
-                    </label>
-                    <input
-                      type="number"
-                      value={filters.maxTransactions}
-                      onChange={(e) => handleFilterChange('maxTransactions', e.target.value)}
-                      placeholder="∞"
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-base-blue-500"
-                    />
-                  </div>
-
-                  {/* Validator */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                       Validator
@@ -405,39 +275,65 @@ export default function BlocksPage() {
                       type="text"
                       value={filters.validator}
                       onChange={(e) => handleFilterChange('validator', e.target.value)}
-                      placeholder="0x..."
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-base-blue-500"
+                      placeholder="0xvalidator..."
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                     />
                   </div>
 
-                  {/* Min Gas Used */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Min Gas Used (M)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={filters.minGasUsed}
-                      onChange={(e) => handleFilterChange('minGasUsed', e.target.value)}
-                      placeholder="0"
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-base-blue-500"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Min Transactions
+                      </label>
+                      <input
+                        type="number"
+                        value={filters.minTransactions}
+                        onChange={(e) => handleFilterChange('minTransactions', e.target.value)}
+                        placeholder="0"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Max Transactions
+                      </label>
+                      <input
+                        type="number"
+                        value={filters.maxTransactions}
+                        onChange={(e) => handleFilterChange('maxTransactions', e.target.value)}
+                        placeholder="∞"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
                   </div>
 
-                  {/* Max Gas Used */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Max Gas Used (M)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={filters.maxGasUsed}
-                      onChange={(e) => handleFilterChange('maxGasUsed', e.target.value)}
-                      placeholder="∞"
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-base-blue-500"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Min Gas Used (M)
+                      </label>
+                      <input
+                        type="number"
+                        value={filters.minGasUsed}
+                        onChange={(e) => handleFilterChange('minGasUsed', e.target.value)}
+                        placeholder="0"
+                        step="0.1"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Max Gas Used (M)
+                      </label>
+                      <input
+                        type="number"
+                        value={filters.maxGasUsed}
+                        onChange={(e) => handleFilterChange('maxGasUsed', e.target.value)}
+                        placeholder="∞"
+                        step="0.1"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -446,76 +342,92 @@ export default function BlocksPage() {
 
           {/* Results Info */}
           <motion.div
-            className="mb-6"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            className="flex items-center justify-between mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <p className="text-slate-600 dark:text-slate-400">
-              Showing {filteredBlocks.length.toLocaleString()} blocks
-              {searchQuery && ` for "${searchQuery}"`}
-            </p>
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              {pagination && (
+                <>
+                  Showing {Math.min((currentPage - 1) * pagination.limit + 1, pagination.total)} - {Math.min(currentPage * pagination.limit, pagination.total)} of {pagination.total} blocks
+                </>
+              )}
+            </div>
+            
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-slate-600 dark:text-slate-400">Page:</span>
+                <select
+                  value={currentPage}
+                  onChange={(e) => setCurrentPage(Number(e.target.value))}
+                  className="px-3 py-1 border border-slate-200 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-sm"
+                >
+                  {Array.from({ length: pagination.totalPages }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-sm text-slate-600 dark:text-slate-400">of {pagination.totalPages}</span>
+              </div>
+            )}
           </motion.div>
 
-          {/* Latest Block Highlight */}
-          {filteredBlocks.length > 0 && (
-            <motion.div
-              className="bg-gradient-to-r from-base-blue-500 to-base-blue-600 rounded-xl p-6 mb-8 text-white shadow-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">Latest Block</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <p className="opacity-80">Block Number</p>
-                      <p className="font-semibold text-lg">{filteredBlocks[0].number.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="opacity-80">Transactions</p>
-                      <p className="font-semibold text-lg">{filteredBlocks[0].transactions}</p>
-                    </div>
-                    <div>
-                      <p className="opacity-80">Gas Used</p>
-                      <p className="font-semibold text-lg">{filteredBlocks[0].gasUsed}</p>
-                    </div>
-                    <div>
-                      <p className="opacity-80">Validator</p>
-                      <p className="font-semibold text-lg">{formatAddress(filteredBlocks[0].validator)}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => copyToClipboard(filteredBlocks[0].hash, 'hash')}
-                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-                  >
-                    {copied === 'hash' ? <CheckCircle className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                  </button>
-                  <Link
-                    href={`/block/${filteredBlocks[0].number}`}
-                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-                  >
-                    <ExternalLink className="w-5 h-5" />
-                  </Link>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Blocks Table */}
+          {/* Blocks List */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            <BlockList 
-              blocks={filteredBlocks}
-              showAll={true}
-            />
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+              <BlockList 
+                blocks={filteredBlocks}
+                loading={loading}
+                showPagination={false}
+                showAll={true}
+              />
+            </div>
           </motion.div>
+
+          {/* Latest Block Highlight */}
+          {stats && !loading && (
+            <motion.div
+              className="mt-8 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-green-200 dark:border-green-800"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                    Latest Indexed Block
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-slate-600 dark:text-slate-400">Block Number: </span>
+                      <span className="font-mono text-slate-900 dark:text-white">
+                        {stats.latestBlockNumber}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600 dark:text-slate-400">Total Transactions: </span>
+                      <span className="font-mono text-slate-900 dark:text-white">
+                        {stats.totalTransactions.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600 dark:text-slate-400">Avg Block Time: </span>
+                      <span className="font-mono text-slate-900 dark:text-white">
+                        {stats.avgBlockTime}s
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <Zap className="h-12 w-12 text-green-600" />
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     </>
