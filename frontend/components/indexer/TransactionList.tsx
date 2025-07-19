@@ -3,13 +3,14 @@ import Link from 'next/link';
 import { createColumnHelper, ColumnDef } from '@tanstack/react-table';
 import DataTable from './DataTable';
 import { formatDistanceToNow } from 'date-fns';
-import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import { Transaction } from '@/hooks/useBlockchainData';
 
 interface TransactionListProps {
   transactions: Transaction[];
   showPagination?: boolean;
   showAll?: boolean;
+  loading?: boolean; // <-- Add this line
 }
 
 const formatAddress = (address: string) => {
@@ -31,7 +32,8 @@ const formatValue = (value: string) => {
 const TransactionList: React.FC<TransactionListProps> = ({ 
   transactions,
   showPagination = true,
-  showAll = false 
+  showAll = false,
+  loading = false // <-- default to false
 }) => {
   const columnHelper = createColumnHelper<Transaction>();
   
@@ -117,6 +119,15 @@ const TransactionList: React.FC<TransactionListProps> = ({
     columns[7], 
   ] as ColumnDef<Transaction>[]);
   
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+        <span className="ml-3 text-blue-500">Loading transactions...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
       <DataTable 

@@ -4,6 +4,7 @@ import { createColumnHelper, ColumnDef } from '@tanstack/react-table';
 import DataTable from './DataTable';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export interface Block {
   number: number;
@@ -17,6 +18,8 @@ export interface Block {
 interface BlockListProps {
   blocks: Block[];
   showAll?: boolean;
+  loading?: boolean;
+  showPagination?: boolean; // <-- Add this line
 }
 
 const formatAddress = (address: string) => {
@@ -24,7 +27,7 @@ const formatAddress = (address: string) => {
   return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 };
 
-const BlockList: React.FC<BlockListProps> = ({ blocks, showAll = false }) => {
+const BlockList: React.FC<BlockListProps> = ({ blocks, showAll = false, loading = false, showPagination = false }) => {
   const columnHelper = createColumnHelper<Block>();
 
   const columns: Array<ColumnDef<Block, any>> = [
@@ -57,7 +60,6 @@ const BlockList: React.FC<BlockListProps> = ({ blocks, showAll = false }) => {
     }),
   ];
 
-  // If not showing all columns, filter to just the essential ones
   const displayedColumns = showAll ? columns : [
     columns[0], // Block
     columns[1], // Age
@@ -65,11 +67,21 @@ const BlockList: React.FC<BlockListProps> = ({ blocks, showAll = false }) => {
     columns[4], // Gas Used
   ];
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+        <span className="ml-3 text-blue-500">Loading blocks...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
       <DataTable 
         data={blocks} 
-        columns={displayedColumns} 
+        columns={displayedColumns}
+        pagination={showPagination}
       />
     </div>
   );

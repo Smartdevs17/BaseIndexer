@@ -98,6 +98,10 @@ npm run start
 5. Web3.js
 6. dotenv
 
+## 🌐 Live Demo
+
+- **Production API:** [https://baseindexer-production.up.railway.app](https://baseindexer-production.up.railway.app)
+- **Frontend Explorer:** [https://base-indexer.vercel.app/](https://base-indexer.vercel.app/)
 
 ## PROMPT EXAMPLE
 ```Index this: 0xdac17f958d2ee523a2206206994597c13d831ec7```
