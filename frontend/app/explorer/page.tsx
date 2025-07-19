@@ -1,6 +1,8 @@
+// frontend/app/explorer/page.tsx - ADD SEARCH URL HANDLING
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { 
   Search, 
@@ -27,6 +29,11 @@ export default function ExplorerPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [timeUntilRefresh, setTimeUntilRefresh] = useState(30)
+  const [searchResults, setSearchResults] = useState<any[]>([])
+
+  // Get search query from URL params
+  const searchParams = useSearchParams()
+  const urlSearchQuery = searchParams.get('search')
 
   // Use the real data hook
   const { 
@@ -40,24 +47,55 @@ export default function ExplorerPage() {
     trendingTokens
   } = useExplorer()
 
+  // Set search query from URL on mount
+  useEffect(() => {
+    if (urlSearchQuery) {
+      setSearchQuery(urlSearchQuery)
+      handleSearch(urlSearchQuery)
+    }
+  }, [urlSearchQuery])
+
   const handleSearch = useCallback(async (query: string) => {
-    if (!query.trim()) return
+    if (!query.trim()) {
+      setSearchResults([])
+      return
+    }
     
     setIsSearching(true)
     setSearchQuery(query)
     
-    // Simulate search delay - replace with actual search logic
-    setTimeout(() => {
+    try {
+      // Search through recent activity for matches
+      const results = recentActivity.filter(activity => 
+        activity.from.toLowerCase().includes(query.toLowerCase()) ||
+        activity.to.toLowerCase().includes(query.toLowerCase()) ||
+        activity.tokenAddress.toLowerCase().includes(query.toLowerCase()) ||
+        activity.transactionHash?.toLowerCase().includes(query.toLowerCase()) ||
+        activity.blockNumber.toString().includes(query)
+      )
+      
+      setSearchResults(results)
+      
+      // If no results in recent activity, you could also search via API
+      if (results.length === 0) {
+        console.log('No results found in recent activity for:', query)
+        // Could make API call here for broader search
+      }
+    } catch (error) {
+      console.error('Search error:', error)
+    } finally {
       setIsSearching(false)
-      console.log('Searching for:', query)
-    }, 1000)
-  }, [])
+    }
+  }, [recentActivity])
 
   const refreshData = useCallback(async () => {
     setTimeUntilRefresh(30)
     await refetch()
-    console.log('Refreshing explorer data...')
-  }, [refetch])
+    // Re-run search if there's an active query
+    if (searchQuery) {
+      handleSearch(searchQuery)
+    }
+  }, [refetch, searchQuery, handleSearch])
 
   // Auto-refresh countdown
   useEffect(() => {
@@ -93,25 +131,39 @@ export default function ExplorerPage() {
   const displayTrendingTokens = trendingTokens.map(token => ({
     symbol: getTokenSymbol(token.address),
     address: token.address,
-    change: `+${token.recentTransfers}`, // Show recent transfer count as "change"
+    change: `+${token.recentTransfers}`,
     volume: `${token.recentTransfers} transfers`,
     positive: true
   }))
 
-  // Transform recent activity data for components
-  const recentTransactions = recentActivity.slice(0, 10).map(activity => ({
-    id: activity.id,
-    hash: activity.transactionHash || `tx_${activity.id}`,
-    from: activity.from,
-    to: activity.to,
-    value: `${activity.value} ${getTokenSymbol(activity.tokenAddress)}`,
-    timestamp: activity.timestamp,
-    status: 'success' as const, // Assuming all indexed transfers are successful
-    blockNumber: activity.blockNumber,
-    gasUsed: Math.floor(Math.random() * 50000) + 21000, // Mock gas data for now
-    gasPrice: '0.00000001 ETH', // Mock gas price
-    tokenAddress: activity.tokenAddress
-  }))
+  // Use search results if searching, otherwise use recent activity
+  const displayTransactions = searchQuery && searchResults.length > 0 
+    ? searchResults.slice(0, 10).map(activity => ({
+        id: activity.id,
+        hash: activity.transactionHash || `tx_${activity.id}`,
+        from: activity.from,
+        to: activity.to,
+        value: `${activity.value} ${getTokenSymbol(activity.tokenAddress)}`,
+        timestamp: activity.timestamp,
+        status: 'success' as const,
+        blockNumber: activity.blockNumber,
+        gasUsed: Math.floor(Math.random() * 50000) + 21000,
+        gasPrice: '0.00000001 ETH',
+        tokenAddress: activity.tokenAddress
+      }))
+    : recentActivity.slice(0, 10).map(activity => ({
+        id: activity.id,
+        hash: activity.transactionHash || `tx_${activity.id}`,
+        from: activity.from,
+        to: activity.to,
+        value: `${activity.value} ${getTokenSymbol(activity.tokenAddress)}`,
+        timestamp: activity.timestamp,
+        status: 'success' as const,
+        blockNumber: activity.blockNumber,
+        gasUsed: Math.floor(Math.random() * 50000) + 21000,
+        gasPrice: '0.00000001 ETH',
+        tokenAddress: activity.tokenAddress
+      }))
 
   // Create mock blocks from unique block numbers in recent activity
   const uniqueBlockNumbers = [...new Set(recentActivity.map(a => a.blockNumber))]
@@ -179,6 +231,14 @@ export default function ExplorerPage() {
                   <span className="text-sm">Live Data Connected</span>
                 </div>
               )}
+              {searchQuery && (
+                <div className="text-sm text-slate-600 dark:text-slate-400">
+                  {searchResults.length > 0 
+                    ? `Found ${searchResults.length} results for "${searchQuery}"`
+                    : `No results found for "${searchQuery}"`
+                  }
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-slate-600 dark:text-slate-400">
@@ -202,201 +262,259 @@ export default function ExplorerPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-      <SearchBar
-  onSearch={handleSearch}
-  isSearching={isSearching}
-  value={searchQuery}
-  onChange={e => setSearchQuery(e.target.value)}
-  loading={loading}
-  placeholder="Search by transaction hash, address, block number, or token..."
-/>
+            <SearchBar
+              onSearch={handleSearch}
+              isSearching={isSearching}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              loading={loading}
+              placeholder="Search by transaction hash, address, block number, or token..."
+            />
           </motion.div>
 
-          {/* Network Statistics Grid */}
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-          >
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Transfers</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {loading ? '...' : displayNetworkStats.totalTransactions}
-                  </p>
+          {/* Show search results or normal content */}
+          {searchQuery && searchResults.length > 0 ? (
+            <motion.div
+              className="mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Search Results for "{searchQuery}"
+                  </h2>
                 </div>
-                <Activity className="h-8 w-8 text-base-blue-600" />
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Unique Blocks</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {loading ? '...' : displayNetworkStats.totalBlocks}
-                  </p>
+                <div className="p-6">
+                  <TransactionList 
+                    transactions={displayTransactions}
+                    loading={loading}
+                    showPagination={false}
+                  />
                 </div>
-                <Database className="h-8 w-8 text-green-600" />
               </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Addresses</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {loading ? '...' : displayNetworkStats.activeAddresses}
-                  </p>
-                </div>
-                <Users className="h-8 w-8 text-purple-600" />
+            </motion.div>
+          ) : searchQuery && searchResults.length === 0 && !isSearching ? (
+            <motion.div
+              className="mb-8 text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                  No results found for "{searchQuery}"
+                </h3>
+                <p className="text-slate-600 dark:text-slate-400 mb-4">
+                  Try searching with a different transaction hash, address, or block number.
+                </p>
+                <button
+                  onClick={() => {
+                    setSearchQuery('')
+                    setSearchResults([])
+                  }}
+                  className="text-base-blue-600 hover:text-base-blue-700 font-medium"
+                >
+                  Clear search
+                </button>
               </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Unique Tokens</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {loading ? '...' : displayNetworkStats.totalTokens}
-                  </p>
-                </div>
-                <Globe className="h-8 w-8 text-orange-600" />
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Recent Activity</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                    {loading ? '...' : displayNetworkStats.recentActivity}
-                  </p>
-                </div>
-                <Zap className="h-8 w-8 text-yellow-600" />
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Trending Tokens */}
-          <motion.div
-            className="mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white">Trending Tokens</h2>
-                <TrendingUp className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {loading ? (
-                  Array.from({length: 4}).map((_, i) => (
-                    <div key={i} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4 animate-pulse">
-                      <div className="h-4 bg-slate-200 dark:bg-slate-600 rounded mb-2"></div>
-                      <div className="h-6 bg-slate-200 dark:bg-slate-600 rounded"></div>
-                    </div>
-                  ))
-                ) : (
-                  displayTrendingTokens.slice(0, 4).map((token, index) => (
-                    <div key={index} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-slate-900 dark:text-white">{token.symbol}</span>
-                        <span className={`text-sm flex items-center ${
-                          token.positive ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {token.positive ? <ArrowUpRight className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
-                          {token.change}
-                        </span>
+            </motion.div>
+          ) : (
+            <>
+              {/* Network Statistics Grid - Only show when not searching */}
+              {!searchQuery && (
+                <motion.div
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                >
+                  <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Transfers</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {loading ? '...' : displayNetworkStats.totalTransactions}
+                        </p>
                       </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">{token.volume}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 font-mono">
-                        {formatTokenAddress(token.address)}
-                      </p>
+                      <Activity className="h-8 w-8 text-base-blue-600" />
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Recent Activity Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Recent Transactions */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-            >
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-                <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Recent Transactions</h2>
-                    <Link href="/transactions" className="text-base-blue-600 hover:text-base-blue-700 text-sm font-medium">
-                      View All →
-                    </Link>
                   </div>
-                </div>
-                <div className="p-6">
-                  {loading ? (
-                    <div className="space-y-4">
-                      {Array.from({length: 5}).map((_, i) => (
-                        <div key={i} className="animate-pulse">
-                          <div className="h-4 bg-slate-200 dark:bg-slate-600 rounded mb-2"></div>
-                          <div className="h-3 bg-slate-200 dark:bg-slate-600 rounded w-3/4"></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <TransactionList 
-                      transactions={recentTransactions}
-                      loading={loading}
-                      showPagination={false}
-                    />
-                  )}
-                </div>
-              </div>
-            </motion.div>
 
-            {/* Recent Blocks */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-            >
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-                <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Recent Blocks</h2>
-                    <Link href="/blocks" className="text-base-blue-600 hover:text-base-blue-700 text-sm font-medium">
-                      View All →
-                    </Link>
-                  </div>
-                </div>
-                <div className="p-6">
-                  {loading ? (
-                    <div className="space-y-4">
-                      {Array.from({length: 5}).map((_, i) => (
-                        <div key={i} className="animate-pulse">
-                          <div className="h-4 bg-slate-200 dark:bg-slate-600 rounded mb-2"></div>
-                          <div className="h-3 bg-slate-200 dark:bg-slate-600 rounded w-2/3"></div>
-                        </div>
-                      ))}
+                  <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Unique Blocks</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {loading ? '...' : displayNetworkStats.totalBlocks}
+                        </p>
+                      </div>
+                      <Database className="h-8 w-8 text-green-600" />
                     </div>
-                  ) : (
-                    <BlockList 
-                      blocks={recentBlocks}
-                      loading={loading}
-                      showPagination={false}
-                    />
-                  )}
-                </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Addresses</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {loading ? '...' : displayNetworkStats.activeAddresses}
+                        </p>
+                      </div>
+                      <Users className="h-8 w-8 text-purple-600" />
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Unique Tokens</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {loading ? '...' : displayNetworkStats.totalTokens}
+                        </p>
+                      </div>
+                      <Globe className="h-8 w-8 text-orange-600" />
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Recent Activity</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {loading ? '...' : displayNetworkStats.recentActivity}
+                        </p>
+                      </div>
+                      <Zap className="h-8 w-8 text-yellow-600" />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Trending Tokens - Only show when not searching */}
+              {!searchQuery && (
+                <motion.div
+                  className="mb-12"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                >
+                  <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">Trending Tokens</h2>
+                      <TrendingUp className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {loading ? (
+                        Array.from({length: 4}).map((_, i) => (
+                          <div key={i} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4 animate-pulse">
+                            <div className="h-4 bg-slate-200 dark:bg-slate-600 rounded mb-2"></div>
+                            <div className="h-6 bg-slate-200 dark:bg-slate-600 rounded"></div>
+                          </div>
+                        ))
+                      ) : (
+                        displayTrendingTokens.slice(0, 4).map((token, index) => (
+                          <div key={index} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-semibold text-slate-900 dark:text-white">{token.symbol}</span>
+                              <span className={`text-sm flex items-center ${
+                                token.positive ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {token.positive ? <ArrowUpRight className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
+                                {token.change}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">{token.volume}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 font-mono">
+                              {formatTokenAddress(token.address)}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Recent Activity Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Recent Transactions */}
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.5 }}
+                >
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                          {searchQuery ? 'Search Results' : 'Recent Transactions'}
+                        </h2>
+                        <Link href="/transactions" className="text-base-blue-600 hover:text-base-blue-700 text-sm font-medium">
+                          View All →
+                        </Link>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      {loading ? (
+                        <div className="space-y-4">
+                          {Array.from({length: 5}).map((_, i) => (
+                            <div key={i} className="animate-pulse">
+                              <div className="h-4 bg-slate-200 dark:bg-slate-600 rounded mb-2"></div>
+                              <div className="h-3 bg-slate-200 dark:bg-slate-600 rounded w-3/4"></div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <TransactionList 
+                          transactions={displayTransactions}
+                          loading={loading}
+                          showPagination={false}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Recent Blocks */}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.6 }}
+                >
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                    <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Recent Blocks</h2>
+                        <Link href="/blocks" className="text-base-blue-600 hover:text-base-blue-700 text-sm font-medium">
+                          View All →
+                        </Link>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      {loading ? (
+                        <div className="space-y-4">
+                          {Array.from({length: 5}).map((_, i) => (
+                            <div key={i} className="animate-pulse">
+                              <div className="h-4 bg-slate-200 dark:bg-slate-600 rounded mb-2"></div>
+                              <div className="h-3 bg-slate-200 dark:bg-slate-600 rounded w-2/3"></div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <BlockList 
+                          blocks={recentBlocks}
+                          loading={loading}
+                          showPagination={false}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
               </div>
-            </motion.div>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </>
