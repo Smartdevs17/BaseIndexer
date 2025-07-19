@@ -151,7 +151,7 @@ export default function Navbar() {
                       </Link>
                     ))}
                   </div>
-                  <div className="py-6 flex justify-between items-center">
+                  {/* <div className="py-6 flex justify-between items-center">
                     <button
                       onClick={() => {
                         toggleTheme()
@@ -171,7 +171,7 @@ export default function Navbar() {
                         </>
                       )}
                     </button>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
