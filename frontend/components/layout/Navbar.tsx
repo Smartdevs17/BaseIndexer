@@ -85,7 +85,7 @@ export default function Navbar() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           </form>
           
-          <button
+          {/* <button
             onClick={toggleTheme}
             className="flex items-center justify-center h-8 w-8 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-300 hover:text-base-blue-600 dark:hover:text-base-blue-400 transition-colors"
             aria-label="Toggle theme"
@@ -95,7 +95,7 @@ export default function Navbar() {
             ) : (
               <Moon className="h-4 w-4" />
             )}
-          </button>
+          </button> */}
         </div>
       </nav>
 
