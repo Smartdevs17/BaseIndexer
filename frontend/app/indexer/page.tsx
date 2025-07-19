@@ -24,6 +24,7 @@ import {
 import SearchBar from '@/components/indexer/SearchBar';
 import TransactionList from '@/components/indexer/TransactionList';
 import ChatBox from '@/components/ai/ChatBox';
+import Navbar from '@/components/layout/Navbar';
 
 export default function IndexerPage() {
   const router = useRouter();
@@ -173,6 +174,8 @@ export default function IndexerPage() {
   };
 
   return (
+    <>
+    <Navbar />
     <div className="bg-white dark:bg-slate-900 min-h-screen relative">
       {/* Background gradient */}
       <div className="absolute inset-x-0 top-[-10rem] -z-10 transform-gpu overflow-hidden blur-3xl sm:top-[-20rem]">
@@ -473,5 +476,6 @@ export default function IndexerPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
