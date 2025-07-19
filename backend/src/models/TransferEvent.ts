@@ -2,6 +2,7 @@ import { Model, DataTypes } from 'sequelize';
 import sequelize from '../config/sequilize';
 
 class TransferEvent extends Model {
+  public id!: number; // Assuming there's an ID field
   public from!: string;
   public to!: string;
   public value!: string;
@@ -13,6 +14,11 @@ class TransferEvent extends Model {
 
 TransferEvent.init(
   {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
     from: {
       type: DataTypes.STRING,
     },
