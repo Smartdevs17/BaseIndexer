@@ -10,7 +10,10 @@ interface TransactionListProps {
   transactions: Transaction[];
   showPagination?: boolean;
   showAll?: boolean;
-  loading?: boolean; // <-- Add this line
+  loading?: boolean;
+  currentPage?: number;      // <-- Add this
+  totalPages?: number;       // <-- Add this
+  onPageChange?: (page: number) => void; // <-- Add this
 }
 
 const formatAddress = (address: string) => {
@@ -33,7 +36,10 @@ const TransactionList: React.FC<TransactionListProps> = ({
   transactions,
   showPagination = true,
   showAll = false,
-  loading = false // <-- default to false
+  loading = false,
+  currentPage,
+  totalPages,
+  onPageChange
 }) => {
   const columnHelper = createColumnHelper<Transaction>();
   
@@ -135,6 +141,28 @@ const TransactionList: React.FC<TransactionListProps> = ({
         columns={displayedColumns}
         pagination={showPagination}
       />
+      {/* Pagination Controls */}
+      {showPagination && totalPages && totalPages > 1 && onPageChange && (
+        <div className="flex justify-center items-center py-4 gap-2">
+          <button
+            onClick={() => onPageChange(currentPage! - 1)}
+            disabled={currentPage === 1}
+            className="px-3 py-1 rounded bg-slate-200 dark:bg-slate-700 disabled:opacity-50"
+          >
+            Prev
+          </button>
+          <span className="px-2 text-sm text-slate-700 dark:text-slate-300">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => onPageChange(currentPage! + 1)}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 rounded bg-slate-200 dark:bg-slate-700 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };
