@@ -1,4 +1,3 @@
-// src/components/indexer/SearchBar.tsx
 import React from 'react';
 import { Search, Loader2 } from 'lucide-react';
 
