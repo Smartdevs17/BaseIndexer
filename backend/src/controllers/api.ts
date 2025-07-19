@@ -1,6 +1,8 @@
 import express, { Request, Response } from 'express';
 import TransferQueryService from './db';
 import ExtendedTransferQueryService from './dbExtended';
+import ExplorerStatsService from './explorerStats'; // Add this line
+
 
 const router = express.Router();
 
@@ -198,6 +200,122 @@ router.get('/tokens/:tokenAddress/transfers', async (req: Request, res: Response
     res.json({ success: true, data: transfers, count: transfers.length });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/explorer/stats
+ * Get comprehensive statistics for Explorer page
+ */
+router.get('/explorer/stats', async (req: Request, res: Response) => {
+  try {
+    const stats = await ExplorerStatsService.getExplorerStats();
+    res.json({ 
+      success: true, 
+      data: stats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Explorer stats API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      endpoint: '/api/explorer/stats'
+    });
+  }
+});
+
+/**
+ * GET /api/explorer/network
+ * Get basic network statistics
+ */
+router.get('/explorer/network', async (req: Request, res: Response) => {
+  try {
+    const networkStats = await ExplorerStatsService.getNetworkStats();
+    const networkOverview = await ExplorerStatsService.getNetworkOverview();
+    
+    res.json({ 
+      success: true, 
+      data: {
+        stats: networkStats,
+        overview: networkOverview
+      }
+    });
+  } catch (error: any) {
+    console.error('Network stats API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/explorer/activity
+ * Get recent network activity
+ */
+router.get('/explorer/activity', async (req: Request, res: Response) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const activity = await ExplorerStatsService.getRecentActivity(limit);
+    
+    res.json({ 
+      success: true, 
+      data: activity,
+      count: activity.length
+    });
+  } catch (error: any) {
+    console.error('Activity API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/explorer/tokens/top
+ * Get top tokens by transfer count
+ */
+router.get('/explorer/tokens/top', async (req: Request, res: Response) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    const topTokens = await ExplorerStatsService.getTopTokens(limit);
+    
+    res.json({ 
+      success: true, 
+      data: topTokens,
+      count: topTokens.length
+    });
+  } catch (error: any) {
+    console.error('Top tokens API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/explorer/tokens/trending
+ * Get trending tokens (most active recently)
+ */
+router.get('/explorer/tokens/trending', async (req: Request, res: Response) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
+    const trendingTokens = await ExplorerStatsService.getTrendingTokens(limit);
+    
+    res.json({ 
+      success: true, 
+      data: trendingTokens,
+      count: trendingTokens.length
+    });
+  } catch (error: any) {
+    console.error('Trending tokens API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
