@@ -197,3 +197,30 @@ export const formatBytes = (bytes: string | number): string => {
   
   return parseFloat((parsedBytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
+
+// Add this utility function in your file or a utils file
+export function formatTokenAmount(value: string | number): string {
+  // Remove commas if value is a string
+  const cleanValue = typeof value === 'string' ? value.replace(/,/g, '') : value;
+  const num = typeof cleanValue === 'string' ? Number(cleanValue) : cleanValue;
+  if (isNaN(num)) return value.toString();
+
+  const units = [
+    { value: 1e15, symbol: 'Q' }, // Quadrillion
+    { value: 1e12, symbol: 'T' }, // Trillion
+    { value: 1e9,  symbol: 'B' }, // Billion
+    { value: 1e6,  symbol: 'M' }, // Million
+    { value: 1e3,  symbol: 'K' }, // Thousand
+  ];
+
+  for (const unit of units) {
+    if (num >= unit.value) {
+      // If the number is still too long, use exponential notation
+      const formatted = (num / unit.value).toFixed(2);
+      return (formatted.length > 8 ? Number(formatted).toExponential(2) : formatted) + unit.symbol;
+    }
+  }
+
+  // For numbers < 1000, just show as is
+  return num.toLocaleString();
+}
