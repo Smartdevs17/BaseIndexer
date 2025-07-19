@@ -1,6 +1,5 @@
-// backend/src/controllers/explorerStats.ts
 import TransferEvent from '../models/TransferEvent';
-import { Op, fn, col, literal } from 'sequelize';
+import { Op, fn, col, } from 'sequelize';
 
 class ExplorerStatsService {
   /**
