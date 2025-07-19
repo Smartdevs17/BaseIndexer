@@ -174,7 +174,7 @@ export default function Stats() {
             <div className="mt-8 flex items-center justify-center space-x-2">
               <div className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-700"></div>
               <div className="text-left">
-                <div className="text-base font-semibold text-gray-900 dark:text-white">Segun Joseph</div>
+                <div className="text-base font-semibold text-gray-900 dark:text-white">Smartdev</div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">Lead Developer @ BaseIndexer</div>
               </div>
             </div>
