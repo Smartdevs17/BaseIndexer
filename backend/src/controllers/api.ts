@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import TransferQueryService from './db';
 import ExtendedTransferQueryService from './dbExtended';
 import ExplorerStatsService from './explorerStats'; // Add this line
+import BlocksStatsService from './blocksStats';
 
 
 const router = express.Router();
@@ -312,6 +313,155 @@ router.get('/explorer/tokens/trending', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Trending tokens API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/blocks
+ * Get paginated list of blocks
+ */
+router.get('/blocks', async (req: Request, res: Response) => {
+  try {
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const minTransactions = req.query.minTransactions ? parseInt(req.query.minTransactions as string) : undefined;
+    const maxTransactions = req.query.maxTransactions ? parseInt(req.query.maxTransactions as string) : undefined;
+    const dateRange = req.query.dateRange as string;
+
+    const result = await BlocksStatsService.getBlocksPaginated({
+      page,
+      limit,
+      minTransactions,
+      maxTransactions,
+      dateRange
+    });
+
+    res.json({ 
+      success: true, 
+      data: result.blocks,
+      pagination: result.pagination
+    });
+  } catch (error: any) {
+    console.error('Blocks API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/blocks/recent
+ * Get recent blocks
+ */
+router.get('/blocks/recent', async (req: Request, res: Response) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const blocks = await BlocksStatsService.getBlockSummaries(limit);
+    
+    res.json({ 
+      success: true, 
+      data: blocks,
+      count: blocks.length
+    });
+  } catch (error: any) {
+    console.error('Recent blocks API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/blocks/stats
+ * Get block statistics
+ */
+router.get('/blocks/stats', async (req: Request, res: Response) => {
+  try {
+    const stats = await BlocksStatsService.getBlockStats();
+    
+    res.json({ 
+      success: true, 
+      data: stats
+    });
+  } catch (error: any) {
+    console.error('Block stats API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/blocks/search
+ * Search blocks by number or hash
+ */
+router.get('/blocks/search', async (req: Request, res: Response) => {
+  try {
+    const query = req.query.q as string;
+    
+    if (!query) {
+    res.status(400).json({ 
+        success: false, 
+        error: 'Search query is required' 
+      });
+      return;
+    }
+
+    const blocks = await BlocksStatsService.searchBlocks(query);
+    
+    res.json({ 
+      success: true, 
+      data: blocks,
+      count: blocks.length
+    });
+  } catch (error: any) {
+    console.error('Block search API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/blocks/:blockNumber
+ * Get detailed block information
+ */
+router.get('/blocks/:blockNumber', async (req: Request, res: Response) => {
+  try {
+    const blockNumber = parseInt(req.params.blockNumber);
+    
+    if (isNaN(blockNumber)) {
+       res.status(400).json({ 
+         success: false, 
+         error: 'Invalid block number' 
+       });
+       return;
+    }
+
+    const block = await BlocksStatsService.getBlockDetails(blockNumber);
+    
+    if (!block) {
+     res.status(404).json({ 
+        success: false, 
+        error: 'Block not found' 
+      });
+      return;
+    }
+
+    res.json({ 
+      success: true, 
+      data: block
+    });
+  } catch (error: any) {
+    console.error('Block details API error:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
