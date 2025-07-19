@@ -3,6 +3,7 @@ import TransferQueryService from './db';
 import ExtendedTransferQueryService from './dbExtended';
 import ExplorerStatsService from './explorerStats'; // Add this line
 import BlocksStatsService from './blocksStats';
+import AnalyticsService from './analyticsService';
 
 
 const router = express.Router();
@@ -462,6 +463,146 @@ router.get('/blocks/:blockNumber', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Block details API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+ /**
+ * GET /api/analytics/overview
+ * Get comprehensive analytics data
+ */
+router.get('/analytics/overview', async (req: Request, res: Response) => {
+  try {
+    const timeRange = req.query.timeRange as string || '24h';
+    const analytics = await AnalyticsService.getAnalyticsData(timeRange);
+    
+    res.json({ 
+      success: true, 
+      data: analytics,
+      timeRange
+    });
+  } catch (error: any) {
+    console.error('Analytics overview API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/analytics/metrics
+ * Get network metrics
+ */
+router.get('/analytics/metrics', async (req: Request, res: Response) => {
+  try {
+    const metrics = await AnalyticsService.getNetworkMetrics();
+    
+    res.json({ 
+      success: true, 
+      data: metrics
+    });
+  } catch (error: any) {
+    console.error('Analytics metrics API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/analytics/volume
+ * Get transaction volume data
+ */
+router.get('/analytics/volume', async (req: Request, res: Response) => {
+  try {
+    const timeRange = req.query.timeRange as string || '24h';
+    const volumeData = await AnalyticsService.getTransactionVolumeData(timeRange);
+    
+    res.json({ 
+      success: true, 
+      data: volumeData,
+      timeRange
+    });
+  } catch (error: any) {
+    console.error('Analytics volume API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/analytics/tokens
+ * Get token distribution and top tokens
+ */
+router.get('/analytics/tokens', async (req: Request, res: Response) => {
+  try {
+    const [distribution, topTokens] = await Promise.all([
+      AnalyticsService.getTokenDistribution(),
+      AnalyticsService.getTopTokens(10)
+    ]);
+    
+    res.json({ 
+      success: true, 
+      data: {
+        distribution,
+        topTokens
+      }
+    });
+  } catch (error: any) {
+    console.error('Analytics tokens API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/analytics/gas
+ * Get gas usage trends
+ */
+router.get('/analytics/gas', async (req: Request, res: Response) => {
+  try {
+    const days = req.query.days ? parseInt(req.query.days as string) : 7;
+    const gasData = await AnalyticsService.getGasData(days);
+    
+    res.json({ 
+      success: true, 
+      data: gasData,
+      days
+    });
+  } catch (error: any) {
+    console.error('Analytics gas API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/analytics/tokens/top
+ * Get top tokens detailed analysis
+ */
+router.get('/analytics/tokens/top', async (req: Request, res: Response) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    const topTokens = await AnalyticsService.getTopTokens(limit);
+    
+    res.json({ 
+      success: true, 
+      data: topTokens,
+      count: topTokens.length
+    });
+  } catch (error: any) {
+    console.error('Top tokens API error:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
