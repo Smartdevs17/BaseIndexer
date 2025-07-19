@@ -2,16 +2,20 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Search, ArrowRight, Code, Database, Bot } from 'lucide-react'
 
 export default function Hero() {
   const [searchQuery, setSearchQuery] = useState('')
+  const router = useRouter()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle search functionality
-    console.log('Search for:', searchQuery)
+    if (searchQuery.trim()) {
+      // Redirect to explorer with search query
+      router.push(`/explorer?search=${encodeURIComponent(searchQuery.trim())}`)
+    }
   }
 
   return (
@@ -53,7 +57,7 @@ export default function Hero() {
               transition={{ duration: 0.5 }}
             >
               <span className="rounded-full bg-base-blue-500/10 px-3 py-1 text-sm font-semibold leading-6 text-base-blue-600 dark:text-base-blue-400 ring-1 ring-inset ring-base-blue-500/20">
-                Base Hackathon 2025
+                ✨ AI-Powered Indexer
               </span>
               <span className="inline-flex items-center space-x-2 text-sm font-medium leading-6 text-gray-600 dark:text-gray-400">
                 <span>Built for Base</span>
@@ -79,9 +83,9 @@ export default function Hero() {
             Query blockchain data using natural language, visualize network activity, and unlock
             deeper insights with intelligent analysis.
           </motion.p>
-          <div className="mt-10 flex items-center gap-x-6">
+          <div className="mt-10 flex flex-col sm:flex-row items-start sm:items-center gap-y-4 gap-x-6">
             <motion.div 
-              className="w-full sm:w-auto"
+              className="w-full sm:flex-1"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.6 }}
@@ -92,21 +96,28 @@ export default function Hero() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by tx hash, address, or block..."
-                  className="rounded-full py-3 px-4 pl-12 w-full sm:w-80 bg-gray-100 dark:bg-slate-800 border-none shadow-sm focus:ring-2 focus:ring-base-blue-500"
+                  className="rounded-full py-3 px-4 pl-12 w-full bg-gray-100 dark:bg-slate-800 border-none shadow-sm focus:ring-2 focus:ring-base-blue-500 focus:outline-none text-gray-900 dark:text-white"
                 />
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               </form>
             </motion.div>
             <motion.div
+              className="flex gap-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.8 }}
             >
               <Link
-                href="/indexer"
-                className="rounded-full bg-base-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-base-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-blue-600"
+                href="/explorer"
+                className="rounded-full bg-base-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-base-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-blue-600 transition-colors"
               >
                 Launch Explorer
+              </Link>
+              <Link
+                href="/indexer"
+                className="rounded-full bg-white dark:bg-slate-800 px-6 py-3 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                Try AI Chat
               </Link>
             </motion.div>
           </div>
@@ -128,54 +139,33 @@ export default function Hero() {
                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   </div>
                   <div className="flex-1 flex justify-center">
-                    <span className="text-sm text-gray-400">BaseIndexer Explorer</span>
+                    <span className="text-sm text-gray-400">BaseIndexer Terminal</span>
                   </div>
                 </div>
                 <div className="p-6 h-[calc(100%-2.5rem)] overflow-y-auto bg-gradient-to-b from-gray-900 to-gray-950 text-gray-100">
-                  <div className="text-green-400 mb-4">$ baseindexer --launch</div>
+                  <div className="text-green-400 mb-4">$ baseindexer --status</div>
                   <div className="text-blue-400 mb-4">
                     <span className="text-gray-400">✓</span> Connected to Base Mainnet
                   </div>
                   <div className="mb-4">
-                    <div className="text-purple-400">» AI Agent initialized</div>
-                    <div className="pl-4 text-gray-400">Ready to answer blockchain queries...</div>
-                  </div>
-                  <div className="mb-4">
-                    <div className="text-yellow-400">» Recent transactions:</div>
-                    <div className="pl-4 text-gray-400 font-mono text-xs">
-                      <div className="mb-1">0x7d21c4ea95a4bd8f0fcbe352c34ed77e91cd77c0ff12348a...</div>
-                      <div className="mb-1">0x9a12b3d5f0c893e6a43d9bd36641d6c1b0963abaf1c8e2d7...</div>
-                      <div>0xe4f09aa0deec5380ae9436f2978b71a4cb01c46b53455bbc...</div>
+                    <div className="text-purple-400 mb-2">
+                      <span className="text-gray-400">→</span> Indexed Transactions: <span className="text-white">1,500+</span>
+                    </div>
+                    <div className="text-purple-400 mb-2">
+                      <span className="text-gray-400">→</span> Active Tokens: <span className="text-white">USDT, USDC, WETH, DAI</span>
+                    </div>
+                    <div className="text-purple-400 mb-2">
+                      <span className="text-gray-400">→</span> AI Assistant: <span className="text-green-400">Online</span>
                     </div>
                   </div>
-                  <div className="mb-4">
-                    <div className="text-cyan-400">» Command prompt:</div>
-                    <div className="flex items-center pl-4 mt-1">
-                      <span className="text-gray-500 mr-2">AI&gt;</span>
-                      <div className="relative flex-1">
-                        <span className="text-white">Tell me about the latest Base protocol upgrade</span>
-                        <span className="animate-pulse ml-1">|</span>
-                      </div>
-                    </div>
+                  <div className="text-yellow-400 mb-2">
+                    <span className="text-gray-400">$</span> Query: "Show me USDT transfers"
                   </div>
-                  <div className="mt-4 pl-4 text-gray-300">
-                    <div className="text-purple-400 mb-1">» AI Response:</div>
-                    <div className="pl-2 text-sm">
-                      <p>The latest Base protocol upgrade improved transaction throughput by 35% and reduced gas fees by implementing optimized batch processing. Key changes include:</p>
-                      <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
-                        <li>Enhanced data availability layer</li>
-                        <li>New smart contract optimization engine</li>
-                        <li>Improved validator coordination</li>
-                      </ul>
-                      <div className="mt-2">Upgrade deployment was completed on April 15, 2025.</div>
-                    </div>
+                  <div className="text-green-400 mb-4">
+                    <span className="text-gray-400">✓</span> Found 847 USDT transfers
                   </div>
-                  <div className="mt-6">
-                    <div className="text-green-400">$ baseindexer --query "token transfers above 100K USD in last 24h"</div>
-                    <div className="mt-2 pl-4 font-mono text-xs">
-                      <div className="text-gray-400">Processing query...</div>
-                      <div className="text-white mt-1">Found 37 transfers matching criteria</div>
-                    </div>
+                  <div className="text-cyan-400 text-sm">
+                    <span className="text-gray-400">◐</span> Indexing new blocks...
                   </div>
                 </div>
               </div>

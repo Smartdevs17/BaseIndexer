@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Clock, 
   MessageSquare, 
@@ -10,7 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
-  Check
+  Check,
+  Search as SearchIcon,
+  ExternalLink
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { 
@@ -23,12 +26,21 @@ import TransactionList from '@/components/indexer/TransactionList';
 import ChatBox from '@/components/ai/ChatBox';
 
 export default function IndexerPage() {
+  const router = useRouter();
+  
+  // UI state
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [timeUntilRefresh, setTimeUntilRefresh] = useState(15);
   const [lastRefreshTime, setLastRefreshTime] = useState<string>('');
-  const [aiTransactions, setAiTransactions] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
-  const [endpoint, setEndpoint] = useState<string | null>(null); // Changed initial value to null
+  const [endpoint, setEndpoint] = useState<string | null>(null);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // AI and data state
+  const [aiTransactions, setAiTransactions] = useState<any[]>([]);
   
   // Pagination states
   const [transactionPage, setTransactionPage] = useState(1);
@@ -40,6 +52,31 @@ export default function IndexerPage() {
   const { blocks, loading: blocksLoading, refreshBlocks } = useRecentBlocks(20);
   const { isRunning, indexerError } = useIndexerControl();
 
+  // Handle search input changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  // Handle search submission - redirect to explorer page
+  const handleSearch = useCallback(async (query: string) => {
+    if (!query.trim()) return;
+    
+    setIsSearching(true);
+    
+    try {
+      // Redirect to explorer with search query (consistent with Hero and Navbar)
+      router.push(`/explorer?search=${encodeURIComponent(query.trim())}`);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      // Reset searching state after a brief delay
+      setTimeout(() => {
+        setIsSearching(false);
+      }, 500);
+    }
+  }, [router]);
+
+  // Process AI transactions for display
   const allTransactions = useMemo(() => {
     return aiTransactions.map((tx: any) => {
       let timestamp;
@@ -63,9 +100,8 @@ export default function IndexerPage() {
     });
   }, [aiTransactions]);
 
-  // Paginated data
-const paginatedTransactions = allTransactions; // Let DataTable handle pagination
-
+  // Paginated data - let DataTable handle pagination
+  const paginatedTransactions = allTransactions;
 
   // Calculate total pages
   const totalTransactionPages = Math.ceil(allTransactions.length / itemsPerPage);
@@ -111,13 +147,13 @@ const paginatedTransactions = allTransactions; // Let DataTable handle paginatio
     const countdownInterval = setInterval(() => {
       setTimeUntilRefresh(prev => (prev > 1 ? prev - 1 : 15));
     }, 1000);
-    console.log('aiTransactions:', aiTransactions);
+
     // Cleanup function
     return () => {
       clearInterval(intervalId);
       clearInterval(countdownInterval);
     };
-  }, [refreshData, aiTransactions]);
+  }, [refreshData]);
   
   const toggleChat = () => {
     setIsChatOpen(!isChatOpen);
@@ -171,7 +207,7 @@ const paginatedTransactions = allTransactions; // Let DataTable handle paginatio
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Header with indexer status*/}
             <motion.div className="mb-8" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                     <span className="text-base-blue-600 dark:text-base-blue-400">Base</span> Blockchain Indexer
@@ -180,24 +216,36 @@ const paginatedTransactions = allTransactions; // Let DataTable handle paginatio
                     Explore transactions and blocks on the Base network
                   </p>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <span className="mr-2">Indexer Status:</span>
-                    <span className={`inline-block w-3 h-3 rounded-full mr-2 ${
-                      isRunning ? 'bg-green-500' : 'bg-red-500'
-                    }`}></span>
-                    <span>{isRunning ? 'Running' : 'Stopped'}</span>
+                
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  {/* Indexer Status */}
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Status:</span>
+                    <div className="flex items-center">
+                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                        isRunning ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                      }`}></span>
+                      <span className={`text-sm font-medium ${
+                        isRunning ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {isRunning ? 'Live' : 'Stopped'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center">
+
+                  {/* Refresh Controls */}
+                  <div className="flex items-center gap-2">
                     <button 
                       onClick={refreshData}
-                      className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                      className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                      title="Refresh data"
                     >
                       <RefreshCw className={`h-5 w-5 ${txsLoading || blocksLoading ? 'animate-spin' : ''}`} />
                     </button>
-                    <div className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                      <div>Refreshing in {timeUntilRefresh}s</div>
-                      {lastRefreshTime && <div>Last refreshed: {lastRefreshTime}</div>}
+                    
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div>Next refresh: {timeUntilRefresh}s</div>
+                      {lastRefreshTime && <div className="text-green-600 dark:text-green-400">Last: {lastRefreshTime}</div>}
                     </div>
                   </div>
                 </div>
@@ -206,68 +254,144 @@ const paginatedTransactions = allTransactions; // Let DataTable handle paginatio
 
             {/* Error displays */}
             {indexerError && (
-              <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
-                <AlertTriangle className="inline mr-2" />
-                {indexerError}
-              </div>
+              <motion.div 
+                className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="flex items-center">
+                  <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                  <span className="text-red-700 dark:text-red-400">{indexerError}</span>
+                </div>
+              </motion.div>
             )}
 
-            {/* Search section */}
+            {/* Enhanced Search section */}
             <motion.div
               className="mb-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-slate-700">
                 <div className="max-w-3xl mx-auto">
+                  <div className="flex items-center gap-3 mb-4">
+                    <SearchIcon className="h-5 w-5 text-base-blue-600 dark:text-base-blue-400" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Search Blockchain Data</h3>
+                  </div>
+                  
                   <SearchBar 
-                    value="" 
-                    onChange={() => {}} 
-                    onSearch={() => {}} 
-                    isSearching={false} 
+                    value={searchQuery} 
+                    onChange={handleSearchChange} 
+                    onSearch={handleSearch} 
+                    isSearching={isSearching}
+                    placeholder="Search by transaction hash, block number, address, or token symbol..."
                   />
-                  <div className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                    Search by transaction hash, block number, address, or token
+                  
+                  <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      Transaction Hash
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      Wallet Address
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                      Block Number
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                      Token Symbol
+                    </span>
+                  </div>
+
+                  {/* Quick Search Examples */}
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Try these examples:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        'USDT transfers',
+                        '0x1234...abcd',
+                        'Block 18500000',
+                        'USDC volume today'
+                      ].map((example) => (
+                        <button
+                          key={example}
+                          onClick={() => handleSearch(example)}
+                          className="px-3 py-1 text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 rounded-full hover:bg-base-blue-100 dark:hover:bg-base-blue-900/20 hover:text-base-blue-600 dark:hover:text-base-blue-400 transition-colors"
+                        >
+                          {example}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </motion.div>
 
-            {/* Main content area with only blocks and transactions */}
+            {/* Main content area with transactions */}
             <div className="grid grid-cols-1 gap-6">
-          
               {/* Recent Transactions */}
               <motion.div
-                className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden"
+                className="bg-white dark:bg-slate-800 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-slate-700"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
               >
-                <div className="px-6 py-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                <div className="px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex items-center">
                     <Clock className="h-5 w-5 text-base-blue-500 mr-2" />
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Recent Transactions</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                      Recent Transactions
+                      {paginatedTransactions.length > 0 && (
+                        <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                          ({paginatedTransactions.length} found)
+                        </span>
+                      )}
+                    </h3>
+                  </div>
+                  
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => window.open('/explorer', '_blank')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-base-blue-600 dark:text-base-blue-400 hover:text-base-blue-700 dark:hover:text-base-blue-300 transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      View in Explorer
+                    </button>
                   </div>
                 </div>
+
                 {txsLoading ? (
-                  <div className="p-6 animate-pulse">
-                    <div className="h-4 w-full bg-gray-200 dark:bg-slate-700 rounded mb-4"></div>
-                    <div className="h-4 w-full bg-gray-200 dark:bg-slate-700 rounded mb-4"></div>
-                    <div className="h-4 w-full bg-gray-200 dark:bg-slate-700 rounded"></div>
+                  <div className="p-6">
+                    <div className="animate-pulse space-y-4">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="flex items-center space-x-4">
+                          <div className="w-16 h-4 bg-gray-200 dark:bg-slate-700 rounded"></div>
+                          <div className="flex-1 h-4 bg-gray-200 dark:bg-slate-700 rounded"></div>
+                          <div className="w-24 h-4 bg-gray-200 dark:bg-slate-700 rounded"></div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <>
+                    {/* API Endpoint display */}
                     {paginatedTransactions.length > 0 && endpoint && (
-                      <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600 dark:text-gray-300">API Endpoint:</span>
-                          <span className="text-sm font-mono bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded">
-                            {endpoint}
-                          </span>
+                      <div className="px-6 py-3 bg-gray-50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2 min-w-0 flex-1">
+                            <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">API:</span>
+                            <span className="text-sm font-mono bg-white dark:bg-slate-800 px-2 py-1 rounded border text-gray-800 dark:text-gray-200 truncate">
+                              {endpoint}
+                            </span>
+                          </div>
                           <button
                             onClick={copyToClipboard}
-                            className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            className="ml-2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                             title={copied ? 'Copied!' : 'Copy to clipboard'}
                           >
                             {copied ? (
@@ -279,7 +403,26 @@ const paginatedTransactions = allTransactions; // Let DataTable handle paginatio
                         </div>
                       </div>
                     )}
-                    <TransactionList transactions={paginatedTransactions} />        
+
+                    {/* Transaction List */}
+                    {paginatedTransactions.length > 0 ? (
+                      <TransactionList transactions={paginatedTransactions} />
+                    ) : (
+                      <div className="p-12 text-center">
+                        <SearchIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No transactions found</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mb-4">
+                          Try using the AI assistant to query specific blockchain data
+                        </p>
+                        <button
+                          onClick={toggleChat}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-base-blue-600 text-white rounded-lg hover:bg-base-blue-700 transition-colors"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          Open AI Assistant
+                        </button>
+                      </div>
+                    )}        
                   </>
                 )}
               </motion.div>
@@ -289,27 +432,35 @@ const paginatedTransactions = allTransactions; // Let DataTable handle paginatio
 
         {/* AI Chat Button */}
         {!isChatOpen && (
-          <button
+          <motion.button
             onClick={toggleChat}
-            className="fixed bottom-6 right-6 bg-base-blue-600 hover:bg-base-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 flex items-center justify-center z-20"
+            className="fixed bottom-6 right-6 bg-base-blue-600 hover:bg-base-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 flex items-center justify-center z-20 group"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 1 }}
           >
             <MessageSquare className="h-6 w-6" />
-          </button>
+            <span className="absolute right-full mr-3 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              Open AI Assistant
+            </span>
+          </motion.button>
         )}
 
         {/* AI Chat Sidebar */}
         <div 
-          className={`fixed right-0 top-0 h-full w-80 bg-white dark:bg-slate-800 shadow-xl transition-transform duration-300 transform z-30 ${
+          className={`fixed right-0 top-0 h-full w-80 bg-white dark:bg-slate-800 shadow-xl transition-transform duration-300 transform z-30 border-l border-gray-200 dark:border-slate-700 ${
             isChatOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
           <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              <span className="text-base-blue-600 dark:text-base-blue-400">Base</span> Assistant
+              <span className="text-base-blue-600 dark:text-base-blue-400">Base</span> AI Assistant
             </h3>
             <button 
               onClick={toggleChat}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>

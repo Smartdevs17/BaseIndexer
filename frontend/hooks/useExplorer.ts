@@ -1,5 +1,5 @@
-// frontend/hooks/useExplorer.ts
 import { useState, useEffect, useCallback } from 'react'
+import { createApiUrl, ENDPOINTS } from '@/lib/config'
 
 interface NetworkStats {
   totalTransfers: number
@@ -59,8 +59,6 @@ interface UseExplorerReturn {
   trendingTokens: TrendingToken[]
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-
 export function useExplorer(): UseExplorerReturn {
   const [data, setData] = useState<ExplorerData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -71,7 +69,9 @@ export function useExplorer(): UseExplorerReturn {
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`${API_BASE_URL}/api/explorer/stats`)
+      // Use the new configuration
+      const apiUrl = createApiUrl(ENDPOINTS.EXPLORER_STATS)
+      const response = await fetch(apiUrl)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -88,7 +88,7 @@ export function useExplorer(): UseExplorerReturn {
       console.error('Error fetching explorer data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
       
-      // Set fallback mock data on error to prevent blank page
+      // Set fallback empty data on error to prevent blank page
       setData({
         network: {
           totalTransfers: 0,
